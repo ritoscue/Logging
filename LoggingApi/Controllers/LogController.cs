@@ -60,16 +60,17 @@ namespace LoggingApi.Controllers
         //GET api/[controller]/User/1234/GetReport[?dtfrom=2012-12-31T22:00:00.000Z&dtTo=2012-12-31T22:00:00.000Z]
         [HttpGet]
         [Route("{User:int}/[action]")]
-        public async Task<IActionResult> GetReport(string User, [FromQuery]DateTime dtFrom,[FromQuery]DateTime dtTo){
-            // var logs = await _dbContext.Logs.SingleOrDefaultAsync(l => l.UserId == User);
-            // var totalLogs = await _dbContext.Logs
-            //     .Where(c => c.Name.StartsWith(name))
-            //     .LongCountAsync();
-            var totalItems = await _dbContext.Logs
-                .Where(l => l.UserId == User)
-                .Where(l => l.dtCreation >= dtFrom && l.dtCreation <= dtTo)
-                .LongCountAsync();
-            return Ok(totalItems);
+        public IActionResult GetReport(string User, [FromQuery]DateTime dtFrom,[FromQuery]DateTime dtTo){
+            var root = (IQueryable<Log>)_dbContext.Logs;
+            root = root.Where(l => l.UserId == User);
+            root = root.Where(l => l.dtCreation >= dtFrom && l.dtCreation <= dtTo);
+
+            var totalLogs = root.Count();            
+            var countLevel =  root
+                           .GroupBy(p => p.Level)
+                           .Select(g => new LevelDTO {Level= g.Key, Count = g.Count()});
+            ReportDTO report = new ReportDTO(totalLogs, countLevel);
+            return Ok(report);
 
         }
 
