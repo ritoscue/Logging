@@ -2,6 +2,7 @@ using System;
 using System.Linq;
 using System.Threading.Tasks;
 using LoggingApi.Models;
+using LoggingApi.ModelView;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Options;
@@ -66,8 +67,38 @@ namespace LoggingApi.Controllers
             //     .LongCountAsync();
             var totalItems = await _dbContext.Logs
                 .Where(l => l.UserId == User)
+                .Where(l => l.dtCreation >= dtFrom && l.dtCreation <= dtTo)
                 .LongCountAsync();
             return Ok(totalItems);
+
+        }
+
+        //GET api/[controller]/GetLog?[?dtfrom=2012-12-31T22:00:00.000Z&dtTo=2012-12-31T22:00:00.000Z&Level=Error&pageSize=3&pageIndex=1]
+        [HttpGet]
+        [Route("[action]")]
+        public async Task<IActionResult> GetLog([FromQuery]DateTime dtFrom,[FromQuery]DateTime dtTo, [FromQuery]string Level, [FromQuery]int pageSize = 3, [FromQuery]int pageIndex = 0){
+            var root = (IQueryable<Log>)_dbContext.Logs;
+
+            if (Level != null)
+            {
+                root = root.Where(l => l.Level ==  Level);
+            }           
+            root =  root.Where(l => l.dtCreation >= dtFrom && l.dtCreation <= dtTo);
+
+            var totalLogs = await root
+                .LongCountAsync();
+
+            var logsOnPage = await root
+                .Skip(pageSize * pageIndex)
+                .OrderBy(l=>l.UserId)
+                .Take(pageSize)
+                .ToListAsync();
+            
+
+            var model = new PageViewModel<Log>(
+                pageIndex, pageSize, totalLogs, logsOnPage);
+
+            return Ok(model);
 
         }
 
